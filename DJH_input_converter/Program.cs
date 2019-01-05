@@ -3,6 +3,7 @@ using System.Threading;
 using HIDInterface;
 using System.Reflection;
 using vJoyInterfaceWrap;
+using System.Diagnostics.Contracts;
 
 namespace DJHInput_Converter
 {
@@ -15,7 +16,7 @@ namespace DJHInput_Converter
         /* vJoy */
         static public vJoy Gamepad;
         static public vJoy.JoystickState iReport;
-
+        static byte[] FilterPOS = new byte[2];
         /* DJHero Bytes map */
         public struct DJHControllerMap
         {
@@ -135,7 +136,7 @@ namespace DJHInput_Converter
                 }
 
             }
-
+            FilterPOS[2] = 0;
             Thread.Sleep(-1);
         }
 
@@ -170,8 +171,11 @@ namespace DJHInput_Converter
                 Map.Slider_step = DJHBytes[23];
 
                 // Print 
-                Console.Write("\rPS: {0}\tSquare: {1}\tCross: {2}\tCircle: {3}\tTriangle: {4}\tFilter: {5}|{6}\tSlider: {7}|{8}\tTT: {9}\t", Map.PS, 
-                    Map.Square, Map.Cross, Map.Circle, Map.Triangle, Map.Filter_normal, Map.Filter_step, Map.Slider_normal, Map.Slider_step, Map.TT_normal);
+                long maxval = 0;
+                int DiscPovNumber = Gamepad.GetVJDDiscPovNumber(1);
+                Gamepad.GetVJDAxisMax(1, HID_USAGES.HID_USAGE_SL0, ref maxval);
+               Console.Write("\rPS: {0}\tSquare: {1}\tCross: {2}\tCircle: {3}\tTriangle: {4}\tFilter: {5}|{6}\tSlider: {7}|{8}\tTT: {9}\t", maxval,
+                  DiscPovNumber, Map.Cross, Map.Circle, Map.Triangle, Map.Filter_normal, Map.Filter_step, Map.Slider_normal, Map.Slider_step, Map.TT_normal);
 
                 // Report vJoy 
                 UpdateGamepad(Map);
@@ -183,10 +187,19 @@ namespace DJHInput_Converter
         {
             iReport.bDevice = (byte)1;
             if (Map.TT_normal != 0) { iReport.AxisX = Map.TT_normal * Map.TT_normal / 128; }
-            iReport.AxisYRot = (int)Map.Slider_step * 0x40 + (Map.Slider_normal / 4);
-            iReport.AxisZRot = (int)Map.Filter_step * 0x40 + (Map.Filter_normal / 4);
-            iReport.Buttons = (uint)Map.PAD;
+             iReport.Dial = (Map.Filter_step * 0x1FFF) + (Map.Filter_normal / 3);
+            if (Map.Slider_normal >= 10) { iReport.Slider = (Map.Slider_step * 0x1FFF) + (Map.Slider_normal / 3); }
+            iReport.Buttons = (uint) Map.PAD;
 
+            if (Map.DPAD == 0x0F)
+            {
+                iReport.bHats = 0xFF;
+            }
+            else
+            {
+                iReport.bHats = (uint)Map.DPAD >> 0x01;
+    
+            }
             // Feed the driver
             Gamepad.UpdateVJD(1, ref iReport);
         }
