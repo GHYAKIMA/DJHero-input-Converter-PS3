@@ -3,7 +3,6 @@ using System.Threading;
 using HIDInterface;
 using System.Reflection;
 using vJoyInterfaceWrap;
-using System.Diagnostics.Contracts;
 
 namespace DJHInput_Converter
 {
@@ -20,23 +19,12 @@ namespace DJHInput_Converter
         /* DJHero Bytes map */
         public struct DJHControllerMap
         {
-            /* ID */
-            public byte PAD;
-            public byte DPAD;
-            /* PAD */
-            public byte Square;
-            public byte Cross;
-            public byte Circle;
-            public byte Triangle;
 
-            /* TT */
-            public byte G => Cross;
-            public byte B => Square;
-            public byte R => Circle;
-            /* Special */
-            public byte Euphoria => Triangle;
-            public byte PS;                     // <-- PS, SELECT, START
-            public byte TT_normal;              // <-- 0x80 - idle
+            public byte Buttons;
+            public byte DPAD;
+            public byte PS; 
+
+            public byte TT_normal;  
             public byte Filter_normal;
             public byte Filter_step;
             public byte Slider_normal;
@@ -66,7 +54,7 @@ namespace DJHInput_Converter
             foreach (HIDDevice.interfaceDetails Dev in Devices)
             {
                 ConnectedDevices++;
-                Console.Write("\n{0}.{1} (VID:{2} PID:{3})", ConnectedDevices, Dev.product, Dev.VID.ToString("X"), Dev.PID.ToString("X"));       
+                Console.Write("\n{0}.{1} (VID:{2} PID:{3})", ConnectedDevices, Dev.product, Dev.VID.ToString("X"), Dev.PID.ToString("X"));
             }
 
             Console.Write("\n-----------------------\n");
@@ -91,7 +79,7 @@ namespace DJHInput_Converter
             if (devnum > ConnectedDevices - 1 | devnum < 0)
             {
                 Console.Clear();
-                Console.Write("Select invalid value! (out of range)");
+                Console.Write("Selected invalid value! (out of range)");
                 Thread.Sleep(1000);
                 Program.Main();
             }
@@ -128,6 +116,7 @@ namespace DJHInput_Converter
 
                         // Start reading DJH Bytes
                         ReadDJHDevice(Devices[devnum].devicePath);
+                        
                         break;
                 }
 
@@ -147,27 +136,19 @@ namespace DJHInput_Converter
                 byte[] DJHBytes = DJH.read();
 
                 // Map
-                Map.PAD = DJHBytes[1];
+                Map.Buttons = DJHBytes[1];
                 Map.DPAD = DJHBytes[3];
-
-                Map.Square = DJHBytes[8];       // + G
-                Map.Cross = DJHBytes[10];       // + B
-                Map.Circle = DJHBytes[13];      // + R
-                Map.Triangle = DJHBytes[12];    // + Euphoria
-
                 Map.PS = DJHBytes[2];
 
                 Map.TT_normal = DJHBytes[7];
-
                 Map.Filter_normal = DJHBytes[20];
                 Map.Filter_step = DJHBytes[21];
-
                 Map.Slider_normal = DJHBytes[22];
                 Map.Slider_step = DJHBytes[23];
 
                 // Print 
-               Console.Write("\rPS: {0}\tSquare: {1}\tCross: {2}\tCircle: {3}\tTriangle: {4}\tFilter: {5}|{6}\tSlider: {7}|{8}\tTT: {9}\t", Map.PS,
-                  Map.Square, Map.Cross, Map.Circle, Map.Triangle, Map.Filter_normal, Map.Filter_step, Map.Slider_normal, Map.Slider_step, Map.TT_normal);
+                Console.Write("\rButton: {0}\t DPAD: {1}\t PS: {2}\t TT: {3}\t Filter: {4}|{5}\tSlider: {6}|{7}\t", 
+                   Map.Buttons, Map.DPAD, Map.PS, Map.TT_normal, Map.Filter_normal, Map.Filter_step, Map.Slider_normal, Map.Slider_step);
 
                 // Report vJoy 
                 UpdateGamepad(Map);
@@ -178,14 +159,15 @@ namespace DJHInput_Converter
         static void UpdateGamepad(DJHControllerMap Map)
         {
             iReport.bDevice = (byte)1;
-            if (Map.TT_normal != 0) { iReport.AxisY = Map.TT_normal * Map.TT_normal / 128; }
-             iReport.Dial = (Map.Filter_step * 0x2AAA) + (Map.Filter_normal / 3);
-             iReport.Slider = (Map.Slider_step * 0x2AAA) + (Map.Slider_normal / 3); 
-             iReport.Buttons = (uint) Map.PAD;
+            if (Map.TT_normal != 0) { iReport.AxisY = (Map.TT_normal - 0x80) * 0x1FF + 0x3FFF; }
+            iReport.Dial = (Map.Filter_step * 0x1FFF) + (Map.Filter_normal * 0x20);
+            iReport.Slider = (Map.Slider_step * 0x1FFF) + (Map.Slider_normal * 0x20);
+  
+            iReport.Buttons = (uint)Map.Buttons + (uint)(Map.PS << 0x04);
 
             if (Map.DPAD == 0x0F)
             {
-                iReport.bHats = (uint)0xFFFFFF;
+                iReport.bHats = 0xFFFFFF;
             }
             else
             {
