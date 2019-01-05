@@ -30,7 +30,7 @@ namespace DJHInput_Converter
             public byte Slider_normal;
             public byte Slider_step;
         }
-
+        static int a = 0;
         static void Main()
         {
             Console.Clear();
@@ -160,10 +160,19 @@ namespace DJHInput_Converter
         {
             iReport.bDevice = (byte)1;
             if (Map.TT_normal != 0) { iReport.AxisY = (Map.TT_normal - 0x80) * 0x1FF + 0x3FFF; }
-            iReport.Dial = (Map.Filter_step * 0x1FFF) + (Map.Filter_normal * 0x20);
+            iReport.Dial = ((Map.Filter_step * 0x1FFF) + (Map.Filter_normal * 0x20) - 0x100) * 3;
             iReport.Slider = (Map.Slider_step * 0x1FFF) + (Map.Slider_normal * 0x20);
-  
-            iReport.Buttons = (uint)Map.Buttons + (uint)(Map.PS << 0x04);
+
+            if (Map.PS >= 0x10)
+            {
+                a = 0x20;
+                Map.PS -= 0x10;
+            }
+            else
+            {
+                a = 0x0;
+            }
+            iReport.Buttons = (uint)Map.Buttons + (uint)(Map.PS << 0x04) + (uint)a;
 
             if (Map.DPAD == 0x0F)
             {
