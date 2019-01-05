@@ -30,7 +30,7 @@ namespace DJHInput_Converter
             public byte Slider_normal;
             public byte Slider_step;
         }
-        static int a = 0;
+        
         static void Main()
         {
             Console.Clear();
@@ -163,9 +163,10 @@ namespace DJHInput_Converter
             iReport.Dial = ((Map.Filter_step * 0x1FFF) + (Map.Filter_normal * 0x20) - 0x100) * 3;
             iReport.Slider = (Map.Slider_step * 0x1FFF) + (Map.Slider_normal * 0x20);
 
+            int a = 0x0;
             if (Map.PS >= 0x10)
             {
-                a = 0x20;
+                a = 0x40;
                 Map.PS -= 0x10;
             }
             else
